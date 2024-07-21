@@ -2,8 +2,8 @@ import os
 import unittest
 
 import cohere
-from cohere import ChatMessage, ChatConnector, ClassifyExample, CreateConnectorServiceAuth, Tool, \
-    ToolParameterDefinitionsValue, ChatRequestToolResultsItem
+from cohere import ChatConnector, ClassifyExample, CreateConnectorServiceAuth, Tool, \
+    ToolParameterDefinitionsValue, ToolResult, Message_Chatbot, Message_User
 
 co = cohere.Client(timeout=10000)
 
@@ -24,10 +24,10 @@ class TestClient(unittest.TestCase):
     def test_chat(self) -> None:
         chat = co.chat(
             chat_history=[
-                ChatMessage(role="USER",
-                            message="Who discovered gravity?"),
-                ChatMessage(role="CHATBOT", message="The man who is widely credited with discovering "
-                                                    "gravity is Sir Isaac Newton")
+                Message_User(
+                    message="Who discovered gravity?"),
+                Message_Chatbot(message="The man who is widely credited with discovering "
+                                "gravity is Sir Isaac Newton")
             ],
             message="What year was he born?",
             connectors=[ChatConnector(id="web-search")]
@@ -38,34 +38,40 @@ class TestClient(unittest.TestCase):
     def test_chat_stream(self) -> None:
         stream = co.chat_stream(
             chat_history=[
-                ChatMessage(role="USER",
-                            message="Who discovered gravity?"),
-                ChatMessage(role="CHATBOT", message="The man who is widely credited with discovering "
-                                                    "gravity is Sir Isaac Newton")
+                Message_User(
+                    message="Who discovered gravity?"),
+                Message_Chatbot(message="The man who is widely credited with discovering "
+                                "gravity is Sir Isaac Newton")
             ],
             message="What year was he born?",
             connectors=[ChatConnector(id="web-search")]
         )
 
+        events = set()
+
         for chat_event in stream:
+            events.add(chat_event.event_type)
             if chat_event.event_type == "text-generation":
                 print(chat_event.text)
 
+        self.assertTrue("text-generation" in events)
+        self.assertTrue("stream-start" in events)
+        self.assertTrue("stream-end" in events)
 
     def test_stream_equals_true(self) -> None:
         with self.assertRaises(ValueError):
             co.chat(
-                stream=True, # type: ignore
+                stream=True,  # type: ignore
                 message="What year was he born?",
             )
 
     def test_deprecated_fn(self) -> None:
         with self.assertRaises(ValueError):
-            co.check_api_key("dummy", dummy="dummy") # type: ignore
+            co.check_api_key("dummy", dummy="dummy")  # type: ignore
 
     def test_moved_fn(self) -> None:
         with self.assertRaises(ValueError):
-            co.list_connectors("dummy", dummy="dummy") # type: ignore
+            co.list_connectors("dummy", dummy="dummy")  # type: ignore
 
     @unittest.skipIf(os.getenv("CO_API_URL") is not None, "Doesn't work in staging.")
     def test_generate(self) -> None:
@@ -187,7 +193,8 @@ class TestClient(unittest.TestCase):
     @unittest.skipIf(os.getenv("CO_API_URL") is not None, "Doesn't work in staging.")
     def test_classify(self) -> None:
         examples = [
-            ClassifyExample(text="Dermatologists don't like her!", label="Spam"),
+            ClassifyExample(
+                text="Dermatologists don't like her!", label="Spam"),
             ClassifyExample(text="'Hello, open to this?'", label="Spam"),
             ClassifyExample(
                 text="I need help please wire me $1000 right now", label="Spam"),
@@ -246,7 +253,8 @@ class TestClient(unittest.TestCase):
 
         # assert files equal
         self.assertTrue(os.path.exists("dataset.jsonl"))
-        self.assertEqual(open(embed_job, 'rb').read(), open("dataset.jsonl", 'rb').read())
+        self.assertEqual(open(embed_job, 'rb').read(),
+                         open("dataset.jsonl", 'rb').read())
 
         print(result)
 
@@ -350,8 +358,10 @@ class TestClient(unittest.TestCase):
         )
 
         if tool_parameters_response.tool_calls is not None:
-            self.assertEqual(tool_parameters_response.tool_calls[0].name, "sales_database")
-            self.assertEqual(tool_parameters_response.tool_calls[0].parameters, {"day": "2023-09-29"})
+            self.assertEqual(
+                tool_parameters_response.tool_calls[0].name, "sales_database")
+            self.assertEqual(tool_parameters_response.tool_calls[0].parameters, {
+                             "day": "2023-09-29"})
         else:
             raise ValueError("Expected tool calls to be present")
 
@@ -369,7 +379,7 @@ class TestClient(unittest.TestCase):
             output = local_tools[tool_call.name](**tool_call.parameters)
             outputs = [output]
 
-            tool_results.append(ChatRequestToolResultsItem(
+            tool_results.append(ToolResult(
                 call=tool_call,
                 outputs=outputs
             ))
@@ -378,6 +388,7 @@ class TestClient(unittest.TestCase):
             message="How good were the sales on September 29?",
             tools=tools,
             tool_results=tool_results,
+            force_single_step=True,
             model="command-nightly",
         )
 

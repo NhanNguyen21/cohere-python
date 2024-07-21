@@ -4,37 +4,37 @@ import datetime as dt
 import typing
 
 from ..core.datetime_utils import serialize_datetime
-from ..core.pydantic_utilities import pydantic_v1
+from ..core.pydantic_utilities import deep_union_pydantic_dicts, pydantic_v1
 from ..core.unchecked_base_model import UncheckedBaseModel
 
 
 class RerankerDataMetrics(UncheckedBaseModel):
-    num_train_queries: typing.Optional[str] = pydantic_v1.Field(default=None)
+    num_train_queries: typing.Optional[int] = pydantic_v1.Field(default=None)
     """
     The number of training queries.
     """
 
-    num_train_relevant_passages: typing.Optional[str] = pydantic_v1.Field(default=None)
+    num_train_relevant_passages: typing.Optional[int] = pydantic_v1.Field(default=None)
     """
     The sum of all relevant passages of valid training examples.
     """
 
-    num_train_hard_negatives: typing.Optional[str] = pydantic_v1.Field(default=None)
+    num_train_hard_negatives: typing.Optional[int] = pydantic_v1.Field(default=None)
     """
     The sum of all hard negatives of valid training examples.
     """
 
-    num_eval_queries: typing.Optional[str] = pydantic_v1.Field(default=None)
+    num_eval_queries: typing.Optional[int] = pydantic_v1.Field(default=None)
     """
     The number of evaluation queries.
     """
 
-    num_eval_relevant_passages: typing.Optional[str] = pydantic_v1.Field(default=None)
+    num_eval_relevant_passages: typing.Optional[int] = pydantic_v1.Field(default=None)
     """
     The sum of all relevant passages of valid eval examples.
     """
 
-    num_eval_hard_negatives: typing.Optional[str] = pydantic_v1.Field(default=None)
+    num_eval_hard_negatives: typing.Optional[int] = pydantic_v1.Field(default=None)
     """
     The sum of all hard negatives of valid eval examples.
     """
@@ -44,8 +44,12 @@ class RerankerDataMetrics(UncheckedBaseModel):
         return super().json(**kwargs_with_defaults)
 
     def dict(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
-        kwargs_with_defaults: typing.Any = {"by_alias": True, "exclude_unset": True, **kwargs}
-        return super().dict(**kwargs_with_defaults)
+        kwargs_with_defaults_exclude_unset: typing.Any = {"by_alias": True, "exclude_unset": True, **kwargs}
+        kwargs_with_defaults_exclude_none: typing.Any = {"by_alias": True, "exclude_none": True, **kwargs}
+
+        return deep_union_pydantic_dicts(
+            super().dict(**kwargs_with_defaults_exclude_unset), super().dict(**kwargs_with_defaults_exclude_none)
+        )
 
     class Config:
         frozen = True

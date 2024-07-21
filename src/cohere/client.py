@@ -3,6 +3,7 @@ import os
 import typing
 from concurrent.futures import ThreadPoolExecutor
 from tokenizers import Tokenizer  # type: ignore
+import logging
 
 import httpx
 
@@ -19,6 +20,7 @@ from .manually_maintained import tokenizers as local_tokenizers
 from .overrides import run_overrides
 from .utils import wait, async_wait, merge_embed_responses, SyncSdkUtils, AsyncSdkUtils
 
+logger = logging.getLogger(__name__)
 run_overrides()
 
 # Use NoReturn as Never type for compatibility
@@ -28,10 +30,21 @@ Never = typing.NoReturn
 def validate_args(obj: typing.Any, method_name: str, check_fn: typing.Callable[[typing.Any], typing.Any]) -> None:
     method = getattr(obj, method_name)
 
-    def wrapped(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+    def _wrapped(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         check_fn(*args, **kwargs)
         return method(*args, **kwargs)
 
+    async def _async_wrapped(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        # The `return await` looks redundant, but it's necessary to ensure that the return type is correct.
+        check_fn(*args, **kwargs)
+        return await method(*args, **kwargs)
+
+    wrapped = _wrapped
+    if asyncio.iscoroutinefunction(method):
+        wrapped = _async_wrapped
+
+    wrapped.__name__ = method.__name__
+    wrapped.__doc__ = method.__doc__
     setattr(obj, method_name, wrapped)
 
 
@@ -70,7 +83,46 @@ def deprecated_function(fn_name: str) -> typing.Any:
     return fn
 
 
+# Logs a warning when a user calls a function with an experimental parameter (kwarg in our case)
+# `deprecated_kwarg` is the name of the experimental parameter, which can be a dot-separated string for nested parameters
+def experimental_kwarg_decorator(func, deprecated_kwarg):
+    # Recursive utility function to check if a kwarg is present in the kwargs.
+    def check_kwarg(deprecated_kwarg: str, kwargs: typing.Dict[str, typing.Any]) -> bool:
+        if "." in deprecated_kwarg:
+            key, rest = deprecated_kwarg.split(".", 1)
+            if key in kwargs:
+                return check_kwarg(rest, kwargs[key])
+        return deprecated_kwarg in kwargs
+
+    def _wrapped(*args, **kwargs):
+        if check_kwarg(deprecated_kwarg, kwargs):
+            logger.warning(
+                f"The `{deprecated_kwarg}` parameter is an experimental feature and may change in future releases.\n"
+                "To suppress this warning, set `log_warning_experimental_features=False` when initializing the client."
+            )
+        return func(*args, **kwargs)
+
+    async def _async_wrapped(*args, **kwargs):
+        if check_kwarg(deprecated_kwarg, kwargs):
+            logger.warning(
+                f"The `{deprecated_kwarg}` parameter is an experimental feature and may change in future releases.\n"
+                "To suppress this warning, set `log_warning_experimental_features=False` when initializing the client."
+            )
+        return await func(*args, **kwargs)
+
+    wrap = _wrapped
+    if asyncio.iscoroutinefunction(func):
+        wrap = _async_wrapped
+
+    wrap.__name__ = func.__name__
+    wrap.__doc__ = func.__doc__
+
+    return wrap
+
+
 class Client(BaseCohere, CacheMixin):
+    _executor: ThreadPoolExecutor
+
     def __init__(
         self,
         api_key: typing.Optional[typing.Union[str, typing.Callable[[], str]]] = None,
@@ -80,9 +132,13 @@ class Client(BaseCohere, CacheMixin):
         client_name: typing.Optional[str] = None,
         timeout: typing.Optional[float] = None,
         httpx_client: typing.Optional[httpx.Client] = None,
+        thread_pool_executor: ThreadPoolExecutor = ThreadPoolExecutor(64),
+        log_warning_experimental_features: bool = True,
     ):
         if api_key is None:
             api_key = _get_api_key_from_environment()
+
+        self._executor = thread_pool_executor
 
         BaseCohere.__init__(
             self,
@@ -95,6 +151,9 @@ class Client(BaseCohere, CacheMixin):
         )
 
         validate_args(self, "chat", throw_if_stream_is_true)
+        if log_warning_experimental_features:
+            self.chat = experimental_kwarg_decorator(self.chat, "response_format.schema")  # type: ignore
+            self.chat_stream = experimental_kwarg_decorator(self.chat_stream, "response_format.schema")  # type: ignore
 
     utils = SyncSdkUtils()
 
@@ -107,8 +166,6 @@ class Client(BaseCohere, CacheMixin):
         self._client_wrapper.httpx_client.httpx_client.close()
 
     wait = wait
-
-    _executor = ThreadPoolExecutor(64)
 
     def embed(
         self,
@@ -251,6 +308,8 @@ class Client(BaseCohere, CacheMixin):
 
 
 class AsyncClient(AsyncBaseCohere, CacheMixin):
+    _executor: ThreadPoolExecutor
+
     def __init__(
         self,
         api_key: typing.Optional[typing.Union[str, typing.Callable[[], str]]] = None,
@@ -260,9 +319,13 @@ class AsyncClient(AsyncBaseCohere, CacheMixin):
         client_name: typing.Optional[str] = None,
         timeout: typing.Optional[float] = None,
         httpx_client: typing.Optional[httpx.AsyncClient] = None,
+        thread_pool_executor: ThreadPoolExecutor = ThreadPoolExecutor(64),
+        log_warning_experimental_features: bool = True,
     ):
         if api_key is None:
             api_key = _get_api_key_from_environment()
+
+        self._executor = thread_pool_executor
 
         AsyncBaseCohere.__init__(
             self,
@@ -275,6 +338,9 @@ class AsyncClient(AsyncBaseCohere, CacheMixin):
         )
 
         validate_args(self, "chat", throw_if_stream_is_true)
+        if log_warning_experimental_features:
+            self.chat = experimental_kwarg_decorator(self.chat, "response_format.schema")  # type: ignore
+            self.chat_stream = experimental_kwarg_decorator(self.chat_stream, "response_format.schema")  # type: ignore
 
     utils = AsyncSdkUtils()
 
@@ -287,8 +353,6 @@ class AsyncClient(AsyncBaseCohere, CacheMixin):
         await self._client_wrapper.httpx_client.httpx_client.aclose()
 
     wait = async_wait
-
-    _executor = ThreadPoolExecutor(64)
 
     async def embed(
         self,

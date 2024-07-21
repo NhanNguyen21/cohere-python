@@ -2,13 +2,11 @@
 
 import datetime as dt
 import typing
-import urllib.parse
 from json.decoder import JSONDecodeError
 
 from ..core.api_error import ApiError
 from ..core.client_wrapper import AsyncClientWrapper, SyncClientWrapper
 from ..core.jsonable_encoder import jsonable_encoder
-from ..core.remove_none_from_dict import remove_none_from_dict
 from ..core.request_options import RequestOptions
 from ..core.unchecked_base_model import construct_type
 from ..errors.bad_request_error import BadRequestError
@@ -19,7 +17,6 @@ from ..errors.service_unavailable_error import ServiceUnavailableError
 from ..errors.unauthorized_error import UnauthorizedError
 from .finetuning.types.create_finetuned_model_response import CreateFinetunedModelResponse
 from .finetuning.types.delete_finetuned_model_response import DeleteFinetunedModelResponse
-from .finetuning.types.error import Error
 from .finetuning.types.finetuned_model import FinetunedModel
 from .finetuning.types.get_finetuned_model_response import GetFinetunedModelResponse
 from .finetuning.types.list_events_response import ListEventsResponse
@@ -46,20 +43,33 @@ class FinetuningClient:
         request_options: typing.Optional[RequestOptions] = None,
     ) -> ListFinetunedModelsResponse:
         """
-        Parameters:
-            - page_size: typing.Optional[int]. Maximum number of results to be returned by the server. If 0, defaults to 50.
+        Parameters
+        ----------
+        page_size : typing.Optional[int]
+            Maximum number of results to be returned by the server. If 0, defaults to 50.
 
-            - page_token: typing.Optional[str]. Request a specific page of the list results.
+        page_token : typing.Optional[str]
+            Request a specific page of the list results.
 
-            - order_by: typing.Optional[str]. Comma separated list of fields. For example: "created_at,name". The default
-                                              sorting order is ascending. To specify descending order for a field, append
-                                              " desc" to the field name. For example: "created_at desc,name".
+        order_by : typing.Optional[str]
+            Comma separated list of fields. For example: "created_at,name". The default
+            sorting order is ascending. To specify descending order for a field, append
+            " desc" to the field name. For example: "created_at desc,name".
 
-                                              Supported sorting fields:
+            Supported sorting fields:
 
-                                              - created_at (default)
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+            - created_at (default)
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        ListFinetunedModelsResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -69,35 +79,10 @@ class FinetuningClient:
         client.finetuning.list_finetuned_models()
         """
         _response = self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "finetuning/finetuned-models"),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "page_size": page_size,
-                        "page_token": page_token,
-                        "order_by": order_by,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            "finetuning/finetuned-models",
+            method="GET",
+            params={"page_size": page_size, "page_token": page_token, "order_by": order_by},
+            request_options=request_options,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(ListFinetunedModelsResponse, construct_type(type_=ListFinetunedModelsResponse, object_=_response.json()))  # type: ignore
@@ -107,7 +92,7 @@ class FinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -123,7 +108,7 @@ class FinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -135,11 +120,20 @@ class FinetuningClient:
         self, *, request: FinetunedModel, request_options: typing.Optional[RequestOptions] = None
     ) -> CreateFinetunedModelResponse:
         """
-        Parameters:
-            - request: FinetunedModel.
+        Parameters
+        ----------
+        request : FinetunedModel
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        CreateFinetunedModelResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
         from cohere.finetuning import BaseModel, FinetunedModel, Settings
 
@@ -160,30 +154,7 @@ class FinetuningClient:
         )
         """
         _response = self._client_wrapper.httpx_client.request(
-            "POST",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "finetuning/finetuned-models"),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            json=jsonable_encoder(request)
-            if request_options is None or request_options.get("additional_body_parameters") is None
-            else {
-                **jsonable_encoder(request),
-                **(jsonable_encoder(remove_none_from_dict(request_options.get("additional_body_parameters", {})))),
-            },
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            "finetuning/finetuned-models", method="POST", json=request, request_options=request_options, omit=OMIT
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(CreateFinetunedModelResponse, construct_type(type_=CreateFinetunedModelResponse, object_=_response.json()))  # type: ignore
@@ -193,7 +164,7 @@ class FinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -209,7 +180,7 @@ class FinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -221,11 +192,21 @@ class FinetuningClient:
         self, id: str, *, request_options: typing.Optional[RequestOptions] = None
     ) -> GetFinetunedModelResponse:
         """
-        Parameters:
-            - id: str. The fine-tuned model ID.
+        Parameters
+        ----------
+        id : str
+            The fine-tuned model ID.
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        GetFinetunedModelResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -237,26 +218,7 @@ class FinetuningClient:
         )
         """
         _response = self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/", f"finetuning/finetuned-models/{jsonable_encoder(id)}"
-            ),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"finetuning/finetuned-models/{jsonable_encoder(id)}", method="GET", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(GetFinetunedModelResponse, construct_type(type_=GetFinetunedModelResponse, object_=_response.json()))  # type: ignore
@@ -266,7 +228,7 @@ class FinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -282,7 +244,7 @@ class FinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -294,11 +256,21 @@ class FinetuningClient:
         self, id: str, *, request_options: typing.Optional[RequestOptions] = None
     ) -> DeleteFinetunedModelResponse:
         """
-        Parameters:
-            - id: str. The fine-tuned model ID.
+        Parameters
+        ----------
+        id : str
+            The fine-tuned model ID.
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DeleteFinetunedModelResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -310,26 +282,7 @@ class FinetuningClient:
         )
         """
         _response = self._client_wrapper.httpx_client.request(
-            "DELETE",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/", f"finetuning/finetuned-models/{jsonable_encoder(id)}"
-            ),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"finetuning/finetuned-models/{jsonable_encoder(id)}", method="DELETE", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DeleteFinetunedModelResponse, construct_type(type_=DeleteFinetunedModelResponse, object_=_response.json()))  # type: ignore
@@ -339,7 +292,7 @@ class FinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -355,7 +308,7 @@ class FinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -368,9 +321,9 @@ class FinetuningClient:
         id: str,
         *,
         name: str,
+        settings: Settings,
         creator_id: typing.Optional[str] = OMIT,
         organization_id: typing.Optional[str] = OMIT,
-        settings: Settings,
         status: typing.Optional[Status] = OMIT,
         created_at: typing.Optional[dt.datetime] = OMIT,
         updated_at: typing.Optional[dt.datetime] = OMIT,
@@ -379,29 +332,48 @@ class FinetuningClient:
         request_options: typing.Optional[RequestOptions] = None,
     ) -> UpdateFinetunedModelResponse:
         """
-        Parameters:
-            - id: str. FinetunedModel ID.
+        Parameters
+        ----------
+        id : str
+            FinetunedModel ID.
 
-            - name: str. FinetunedModel name (e.g. `foobar`).
+        name : str
+            FinetunedModel name (e.g. `foobar`).
 
-            - creator_id: typing.Optional[str]. User ID of the creator.
+        settings : Settings
+            FinetunedModel settings such as dataset, hyperparameters...
 
-            - organization_id: typing.Optional[str]. Organization ID.
+        creator_id : typing.Optional[str]
+            User ID of the creator.
 
-            - settings: Settings. FinetunedModel settings such as dataset, hyperparameters...
+        organization_id : typing.Optional[str]
+            Organization ID.
 
-            - status: typing.Optional[Status]. Current stage in the life-cycle of the fine-tuned model.
+        status : typing.Optional[Status]
+            Current stage in the life-cycle of the fine-tuned model.
 
-            - created_at: typing.Optional[dt.datetime]. Creation timestamp.
+        created_at : typing.Optional[dt.datetime]
+            Creation timestamp.
 
-            - updated_at: typing.Optional[dt.datetime]. Latest update timestamp.
+        updated_at : typing.Optional[dt.datetime]
+            Latest update timestamp.
 
-            - completed_at: typing.Optional[dt.datetime]. Timestamp for the completed fine-tuning.
+        completed_at : typing.Optional[dt.datetime]
+            Timestamp for the completed fine-tuning.
 
-            - last_used: typing.Optional[dt.datetime]. Timestamp for the latest request to this fine-tuned model.
+        last_used : typing.Optional[dt.datetime]
+            Timestamp for the latest request to this fine-tuned model.
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        UpdateFinetunedModelResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
         from cohere.finetuning import BaseModel, Settings
 
@@ -420,48 +392,22 @@ class FinetuningClient:
             ),
         )
         """
-        _request: typing.Dict[str, typing.Any] = {"name": name, "settings": settings}
-        if creator_id is not OMIT:
-            _request["creator_id"] = creator_id
-        if organization_id is not OMIT:
-            _request["organization_id"] = organization_id
-        if status is not OMIT:
-            _request["status"] = status
-        if created_at is not OMIT:
-            _request["created_at"] = created_at
-        if updated_at is not OMIT:
-            _request["updated_at"] = updated_at
-        if completed_at is not OMIT:
-            _request["completed_at"] = completed_at
-        if last_used is not OMIT:
-            _request["last_used"] = last_used
         _response = self._client_wrapper.httpx_client.request(
-            "PATCH",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/", f"finetuning/finetuned-models/{jsonable_encoder(id)}"
-            ),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            json=jsonable_encoder(_request)
-            if request_options is None or request_options.get("additional_body_parameters") is None
-            else {
-                **jsonable_encoder(_request),
-                **(jsonable_encoder(remove_none_from_dict(request_options.get("additional_body_parameters", {})))),
+            f"finetuning/finetuned-models/{jsonable_encoder(id)}",
+            method="PATCH",
+            json={
+                "name": name,
+                "creator_id": creator_id,
+                "organization_id": organization_id,
+                "settings": settings,
+                "status": status,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "completed_at": completed_at,
+                "last_used": last_used,
             },
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            request_options=request_options,
+            omit=OMIT,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(UpdateFinetunedModelResponse, construct_type(type_=UpdateFinetunedModelResponse, object_=_response.json()))  # type: ignore
@@ -471,7 +417,7 @@ class FinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -487,7 +433,7 @@ class FinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -505,22 +451,36 @@ class FinetuningClient:
         request_options: typing.Optional[RequestOptions] = None,
     ) -> ListEventsResponse:
         """
-        Parameters:
-            - finetuned_model_id: str. The parent fine-tuned model ID.
+        Parameters
+        ----------
+        finetuned_model_id : str
+            The parent fine-tuned model ID.
 
-            - page_size: typing.Optional[int]. Maximum number of results to be returned by the server. If 0, defaults to 50.
+        page_size : typing.Optional[int]
+            Maximum number of results to be returned by the server. If 0, defaults to 50.
 
-            - page_token: typing.Optional[str]. Request a specific page of the list results.
+        page_token : typing.Optional[str]
+            Request a specific page of the list results.
 
-            - order_by: typing.Optional[str]. Comma separated list of fields. For example: "created_at,name". The default
-                                              sorting order is ascending. To specify descending order for a field, append
-                                              " desc" to the field name. For example: "created_at desc,name".
+        order_by : typing.Optional[str]
+            Comma separated list of fields. For example: "created_at,name". The default
+            sorting order is ascending. To specify descending order for a field, append
+            " desc" to the field name. For example: "created_at desc,name".
 
-                                              Supported sorting fields:
+            Supported sorting fields:
 
-                                              - created_at (default)
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+            - created_at (default)
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        ListEventsResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -532,38 +492,10 @@ class FinetuningClient:
         )
         """
         _response = self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/",
-                f"finetuning/finetuned-models/{jsonable_encoder(finetuned_model_id)}/events",
-            ),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "page_size": page_size,
-                        "page_token": page_token,
-                        "order_by": order_by,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"finetuning/finetuned-models/{jsonable_encoder(finetuned_model_id)}/events",
+            method="GET",
+            params={"page_size": page_size, "page_token": page_token, "order_by": order_by},
+            request_options=request_options,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(ListEventsResponse, construct_type(type_=ListEventsResponse, object_=_response.json()))  # type: ignore
@@ -573,7 +505,7 @@ class FinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -589,7 +521,7 @@ class FinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -606,15 +538,27 @@ class FinetuningClient:
         request_options: typing.Optional[RequestOptions] = None,
     ) -> ListTrainingStepMetricsResponse:
         """
-        Parameters:
-            - finetuned_model_id: str. The parent fine-tuned model ID.
+        Parameters
+        ----------
+        finetuned_model_id : str
+            The parent fine-tuned model ID.
 
-            - page_size: typing.Optional[int]. Maximum number of results to be returned by the server. If 0, defaults to 50.
+        page_size : typing.Optional[int]
+            Maximum number of results to be returned by the server. If 0, defaults to 50.
 
-            - page_token: typing.Optional[str]. Request a specific page of the list results.
+        page_token : typing.Optional[str]
+            Request a specific page of the list results.
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        ListTrainingStepMetricsResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -626,37 +570,10 @@ class FinetuningClient:
         )
         """
         _response = self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/",
-                f"finetuning/finetuned-models/{jsonable_encoder(finetuned_model_id)}/metrics",
-            ),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "page_size": page_size,
-                        "page_token": page_token,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"finetuning/finetuned-models/{jsonable_encoder(finetuned_model_id)}/training-step-metrics",
+            method="GET",
+            params={"page_size": page_size, "page_token": page_token},
+            request_options=request_options,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(ListTrainingStepMetricsResponse, construct_type(type_=ListTrainingStepMetricsResponse, object_=_response.json()))  # type: ignore
@@ -666,7 +583,7 @@ class FinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -682,7 +599,7 @@ class FinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -704,20 +621,33 @@ class AsyncFinetuningClient:
         request_options: typing.Optional[RequestOptions] = None,
     ) -> ListFinetunedModelsResponse:
         """
-        Parameters:
-            - page_size: typing.Optional[int]. Maximum number of results to be returned by the server. If 0, defaults to 50.
+        Parameters
+        ----------
+        page_size : typing.Optional[int]
+            Maximum number of results to be returned by the server. If 0, defaults to 50.
 
-            - page_token: typing.Optional[str]. Request a specific page of the list results.
+        page_token : typing.Optional[str]
+            Request a specific page of the list results.
 
-            - order_by: typing.Optional[str]. Comma separated list of fields. For example: "created_at,name". The default
-                                              sorting order is ascending. To specify descending order for a field, append
-                                              " desc" to the field name. For example: "created_at desc,name".
+        order_by : typing.Optional[str]
+            Comma separated list of fields. For example: "created_at,name". The default
+            sorting order is ascending. To specify descending order for a field, append
+            " desc" to the field name. For example: "created_at desc,name".
 
-                                              Supported sorting fields:
+            Supported sorting fields:
 
-                                              - created_at (default)
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+            - created_at (default)
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        ListFinetunedModelsResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -727,35 +657,10 @@ class AsyncFinetuningClient:
         await client.finetuning.list_finetuned_models()
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "finetuning/finetuned-models"),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "page_size": page_size,
-                        "page_token": page_token,
-                        "order_by": order_by,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            "finetuning/finetuned-models",
+            method="GET",
+            params={"page_size": page_size, "page_token": page_token, "order_by": order_by},
+            request_options=request_options,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(ListFinetunedModelsResponse, construct_type(type_=ListFinetunedModelsResponse, object_=_response.json()))  # type: ignore
@@ -765,7 +670,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -781,7 +686,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -793,11 +698,20 @@ class AsyncFinetuningClient:
         self, *, request: FinetunedModel, request_options: typing.Optional[RequestOptions] = None
     ) -> CreateFinetunedModelResponse:
         """
-        Parameters:
-            - request: FinetunedModel.
+        Parameters
+        ----------
+        request : FinetunedModel
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        CreateFinetunedModelResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
         from cohere.finetuning import BaseModel, FinetunedModel, Settings
 
@@ -818,30 +732,7 @@ class AsyncFinetuningClient:
         )
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "POST",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "finetuning/finetuned-models"),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            json=jsonable_encoder(request)
-            if request_options is None or request_options.get("additional_body_parameters") is None
-            else {
-                **jsonable_encoder(request),
-                **(jsonable_encoder(remove_none_from_dict(request_options.get("additional_body_parameters", {})))),
-            },
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            "finetuning/finetuned-models", method="POST", json=request, request_options=request_options, omit=OMIT
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(CreateFinetunedModelResponse, construct_type(type_=CreateFinetunedModelResponse, object_=_response.json()))  # type: ignore
@@ -851,7 +742,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -867,7 +758,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -879,11 +770,21 @@ class AsyncFinetuningClient:
         self, id: str, *, request_options: typing.Optional[RequestOptions] = None
     ) -> GetFinetunedModelResponse:
         """
-        Parameters:
-            - id: str. The fine-tuned model ID.
+        Parameters
+        ----------
+        id : str
+            The fine-tuned model ID.
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        GetFinetunedModelResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -895,26 +796,7 @@ class AsyncFinetuningClient:
         )
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/", f"finetuning/finetuned-models/{jsonable_encoder(id)}"
-            ),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"finetuning/finetuned-models/{jsonable_encoder(id)}", method="GET", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(GetFinetunedModelResponse, construct_type(type_=GetFinetunedModelResponse, object_=_response.json()))  # type: ignore
@@ -924,7 +806,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -940,7 +822,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -952,11 +834,21 @@ class AsyncFinetuningClient:
         self, id: str, *, request_options: typing.Optional[RequestOptions] = None
     ) -> DeleteFinetunedModelResponse:
         """
-        Parameters:
-            - id: str. The fine-tuned model ID.
+        Parameters
+        ----------
+        id : str
+            The fine-tuned model ID.
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DeleteFinetunedModelResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -968,26 +860,7 @@ class AsyncFinetuningClient:
         )
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "DELETE",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/", f"finetuning/finetuned-models/{jsonable_encoder(id)}"
-            ),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"finetuning/finetuned-models/{jsonable_encoder(id)}", method="DELETE", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DeleteFinetunedModelResponse, construct_type(type_=DeleteFinetunedModelResponse, object_=_response.json()))  # type: ignore
@@ -997,7 +870,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -1013,7 +886,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -1026,9 +899,9 @@ class AsyncFinetuningClient:
         id: str,
         *,
         name: str,
+        settings: Settings,
         creator_id: typing.Optional[str] = OMIT,
         organization_id: typing.Optional[str] = OMIT,
-        settings: Settings,
         status: typing.Optional[Status] = OMIT,
         created_at: typing.Optional[dt.datetime] = OMIT,
         updated_at: typing.Optional[dt.datetime] = OMIT,
@@ -1037,29 +910,48 @@ class AsyncFinetuningClient:
         request_options: typing.Optional[RequestOptions] = None,
     ) -> UpdateFinetunedModelResponse:
         """
-        Parameters:
-            - id: str. FinetunedModel ID.
+        Parameters
+        ----------
+        id : str
+            FinetunedModel ID.
 
-            - name: str. FinetunedModel name (e.g. `foobar`).
+        name : str
+            FinetunedModel name (e.g. `foobar`).
 
-            - creator_id: typing.Optional[str]. User ID of the creator.
+        settings : Settings
+            FinetunedModel settings such as dataset, hyperparameters...
 
-            - organization_id: typing.Optional[str]. Organization ID.
+        creator_id : typing.Optional[str]
+            User ID of the creator.
 
-            - settings: Settings. FinetunedModel settings such as dataset, hyperparameters...
+        organization_id : typing.Optional[str]
+            Organization ID.
 
-            - status: typing.Optional[Status]. Current stage in the life-cycle of the fine-tuned model.
+        status : typing.Optional[Status]
+            Current stage in the life-cycle of the fine-tuned model.
 
-            - created_at: typing.Optional[dt.datetime]. Creation timestamp.
+        created_at : typing.Optional[dt.datetime]
+            Creation timestamp.
 
-            - updated_at: typing.Optional[dt.datetime]. Latest update timestamp.
+        updated_at : typing.Optional[dt.datetime]
+            Latest update timestamp.
 
-            - completed_at: typing.Optional[dt.datetime]. Timestamp for the completed fine-tuning.
+        completed_at : typing.Optional[dt.datetime]
+            Timestamp for the completed fine-tuning.
 
-            - last_used: typing.Optional[dt.datetime]. Timestamp for the latest request to this fine-tuned model.
+        last_used : typing.Optional[dt.datetime]
+            Timestamp for the latest request to this fine-tuned model.
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        UpdateFinetunedModelResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
         from cohere.finetuning import BaseModel, Settings
 
@@ -1078,48 +970,22 @@ class AsyncFinetuningClient:
             ),
         )
         """
-        _request: typing.Dict[str, typing.Any] = {"name": name, "settings": settings}
-        if creator_id is not OMIT:
-            _request["creator_id"] = creator_id
-        if organization_id is not OMIT:
-            _request["organization_id"] = organization_id
-        if status is not OMIT:
-            _request["status"] = status
-        if created_at is not OMIT:
-            _request["created_at"] = created_at
-        if updated_at is not OMIT:
-            _request["updated_at"] = updated_at
-        if completed_at is not OMIT:
-            _request["completed_at"] = completed_at
-        if last_used is not OMIT:
-            _request["last_used"] = last_used
         _response = await self._client_wrapper.httpx_client.request(
-            "PATCH",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/", f"finetuning/finetuned-models/{jsonable_encoder(id)}"
-            ),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            json=jsonable_encoder(_request)
-            if request_options is None or request_options.get("additional_body_parameters") is None
-            else {
-                **jsonable_encoder(_request),
-                **(jsonable_encoder(remove_none_from_dict(request_options.get("additional_body_parameters", {})))),
+            f"finetuning/finetuned-models/{jsonable_encoder(id)}",
+            method="PATCH",
+            json={
+                "name": name,
+                "creator_id": creator_id,
+                "organization_id": organization_id,
+                "settings": settings,
+                "status": status,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "completed_at": completed_at,
+                "last_used": last_used,
             },
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            request_options=request_options,
+            omit=OMIT,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(UpdateFinetunedModelResponse, construct_type(type_=UpdateFinetunedModelResponse, object_=_response.json()))  # type: ignore
@@ -1129,7 +995,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -1145,7 +1011,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -1163,22 +1029,36 @@ class AsyncFinetuningClient:
         request_options: typing.Optional[RequestOptions] = None,
     ) -> ListEventsResponse:
         """
-        Parameters:
-            - finetuned_model_id: str. The parent fine-tuned model ID.
+        Parameters
+        ----------
+        finetuned_model_id : str
+            The parent fine-tuned model ID.
 
-            - page_size: typing.Optional[int]. Maximum number of results to be returned by the server. If 0, defaults to 50.
+        page_size : typing.Optional[int]
+            Maximum number of results to be returned by the server. If 0, defaults to 50.
 
-            - page_token: typing.Optional[str]. Request a specific page of the list results.
+        page_token : typing.Optional[str]
+            Request a specific page of the list results.
 
-            - order_by: typing.Optional[str]. Comma separated list of fields. For example: "created_at,name". The default
-                                              sorting order is ascending. To specify descending order for a field, append
-                                              " desc" to the field name. For example: "created_at desc,name".
+        order_by : typing.Optional[str]
+            Comma separated list of fields. For example: "created_at,name". The default
+            sorting order is ascending. To specify descending order for a field, append
+            " desc" to the field name. For example: "created_at desc,name".
 
-                                              Supported sorting fields:
+            Supported sorting fields:
 
-                                              - created_at (default)
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+            - created_at (default)
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        ListEventsResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -1190,38 +1070,10 @@ class AsyncFinetuningClient:
         )
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/",
-                f"finetuning/finetuned-models/{jsonable_encoder(finetuned_model_id)}/events",
-            ),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "page_size": page_size,
-                        "page_token": page_token,
-                        "order_by": order_by,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"finetuning/finetuned-models/{jsonable_encoder(finetuned_model_id)}/events",
+            method="GET",
+            params={"page_size": page_size, "page_token": page_token, "order_by": order_by},
+            request_options=request_options,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(ListEventsResponse, construct_type(type_=ListEventsResponse, object_=_response.json()))  # type: ignore
@@ -1231,7 +1083,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -1247,7 +1099,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -1264,15 +1116,27 @@ class AsyncFinetuningClient:
         request_options: typing.Optional[RequestOptions] = None,
     ) -> ListTrainingStepMetricsResponse:
         """
-        Parameters:
-            - finetuned_model_id: str. The parent fine-tuned model ID.
+        Parameters
+        ----------
+        finetuned_model_id : str
+            The parent fine-tuned model ID.
 
-            - page_size: typing.Optional[int]. Maximum number of results to be returned by the server. If 0, defaults to 50.
+        page_size : typing.Optional[int]
+            Maximum number of results to be returned by the server. If 0, defaults to 50.
 
-            - page_token: typing.Optional[str]. Request a specific page of the list results.
+        page_token : typing.Optional[str]
+            Request a specific page of the list results.
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        ListTrainingStepMetricsResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -1284,37 +1148,10 @@ class AsyncFinetuningClient:
         )
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(
-                f"{self._client_wrapper.get_base_url()}/",
-                f"finetuning/finetuned-models/{jsonable_encoder(finetuned_model_id)}/metrics",
-            ),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "page_size": page_size,
-                        "page_token": page_token,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"finetuning/finetuned-models/{jsonable_encoder(finetuned_model_id)}/training-step-metrics",
+            method="GET",
+            params={"page_size": page_size, "page_token": page_token},
+            request_options=request_options,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(ListTrainingStepMetricsResponse, construct_type(type_=ListTrainingStepMetricsResponse, object_=_response.json()))  # type: ignore
@@ -1324,7 +1161,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 401:
             raise UnauthorizedError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         if _response.status_code == 403:
             raise ForbiddenError(
@@ -1340,7 +1177,7 @@ class AsyncFinetuningClient:
             )
         if _response.status_code == 503:
             raise ServiceUnavailableError(
-                typing.cast(Error, construct_type(type_=Error, object_=_response.json()))  # type: ignore
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()

@@ -2,7 +2,6 @@
 
 import datetime as dt
 import typing
-import urllib.parse
 from json.decoder import JSONDecodeError
 
 from .. import core
@@ -10,12 +9,26 @@ from ..core.api_error import ApiError
 from ..core.client_wrapper import AsyncClientWrapper, SyncClientWrapper
 from ..core.datetime_utils import serialize_datetime
 from ..core.jsonable_encoder import jsonable_encoder
-from ..core.remove_none_from_dict import remove_none_from_dict
 from ..core.request_options import RequestOptions
 from ..core.unchecked_base_model import construct_type
+from ..errors.bad_request_error import BadRequestError
+from ..errors.client_closed_request_error import ClientClosedRequestError
+from ..errors.forbidden_error import ForbiddenError
+from ..errors.gateway_timeout_error import GatewayTimeoutError
+from ..errors.internal_server_error import InternalServerError
+from ..errors.not_found_error import NotFoundError
+from ..errors.not_implemented_error import NotImplementedError
+from ..errors.service_unavailable_error import ServiceUnavailableError
 from ..errors.too_many_requests_error import TooManyRequestsError
+from ..errors.unauthorized_error import UnauthorizedError
+from ..errors.unprocessable_entity_error import UnprocessableEntityError
+from ..types.client_closed_request_error_body import ClientClosedRequestErrorBody
 from ..types.dataset_type import DatasetType
 from ..types.dataset_validation_status import DatasetValidationStatus
+from ..types.gateway_timeout_error_body import GatewayTimeoutErrorBody
+from ..types.not_implemented_error_body import NotImplementedErrorBody
+from ..types.too_many_requests_error_body import TooManyRequestsErrorBody
+from ..types.unprocessable_entity_error_body import UnprocessableEntityErrorBody
 from .types.datasets_create_response import DatasetsCreateResponse
 from .types.datasets_get_response import DatasetsGetResponse
 from .types.datasets_get_usage_response import DatasetsGetUsageResponse
@@ -43,21 +56,36 @@ class DatasetsClient:
         """
         List datasets that have been created.
 
-        Parameters:
-            - dataset_type: typing.Optional[str]. optional filter by dataset type
+        Parameters
+        ----------
+        dataset_type : typing.Optional[str]
+            optional filter by dataset type
 
-            - before: typing.Optional[dt.datetime]. optional filter before a date
+        before : typing.Optional[dt.datetime]
+            optional filter before a date
 
-            - after: typing.Optional[dt.datetime]. optional filter after a date
+        after : typing.Optional[dt.datetime]
+            optional filter after a date
 
-            - limit: typing.Optional[float]. optional limit to number of results
+        limit : typing.Optional[float]
+            optional limit to number of results
 
-            - offset: typing.Optional[float]. optional offset to start of results
+        offset : typing.Optional[float]
+            optional offset to start of results
 
-            - validation_status: typing.Optional[DatasetValidationStatus]. optional filter by validation status
+        validation_status : typing.Optional[DatasetValidationStatus]
+            optional filter by validation status
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DatasetsListResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -67,44 +95,63 @@ class DatasetsClient:
         client.datasets.list()
         """
         _response = self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "datasets"),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "datasetType": dataset_type,
-                        "before": serialize_datetime(before) if before is not None else None,
-                        "after": serialize_datetime(after) if after is not None else None,
-                        "limit": limit,
-                        "offset": offset,
-                        "validationStatus": validation_status,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            "datasets",
+            method="GET",
+            params={
+                "datasetType": dataset_type,
+                "before": serialize_datetime(before) if before is not None else None,
+                "after": serialize_datetime(after) if after is not None else None,
+                "limit": limit,
+                "offset": offset,
+                "validationStatus": validation_status,
+            },
+            request_options=request_options,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DatasetsListResponse, construct_type(type_=DatasetsListResponse, object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -117,6 +164,7 @@ class DatasetsClient:
         *,
         name: str,
         type: DatasetType,
+        data: core.File,
         keep_original_file: typing.Optional[bool] = None,
         skip_malformed_input: typing.Optional[bool] = None,
         keep_fields: typing.Optional[typing.Union[str, typing.Sequence[str]]] = None,
@@ -124,38 +172,57 @@ class DatasetsClient:
         text_separator: typing.Optional[str] = None,
         csv_delimiter: typing.Optional[str] = None,
         dry_run: typing.Optional[bool] = None,
-        data: core.File,
         eval_data: typing.Optional[core.File] = None,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> DatasetsCreateResponse:
         """
         Create a dataset by uploading a file. See ['Dataset Creation'](https://docs.cohere.com/docs/datasets#dataset-creation) for more information.
 
-        Parameters:
-            - name: str. The name of the uploaded dataset.
+        Parameters
+        ----------
+        name : str
+            The name of the uploaded dataset.
 
-            - type: DatasetType. The dataset type, which is used to validate the data. Valid types are `embed-input`, `reranker-finetune-input`, `prompt-completion-finetune-input`, `single-label-classification-finetune-input`, `chat-finetune-input`, and `multi-label-classification-finetune-input`.
+        type : DatasetType
+            The dataset type, which is used to validate the data. Valid types are `embed-input`, `reranker-finetune-input`, `single-label-classification-finetune-input`, `chat-finetune-input`, and `multi-label-classification-finetune-input`.
 
-            - keep_original_file: typing.Optional[bool]. Indicates if the original file should be stored.
+        data : core.File
+            See core.File for more documentation
 
-            - skip_malformed_input: typing.Optional[bool]. Indicates whether rows with malformed input should be dropped (instead of failing the validation check). Dropped rows will be returned in the warnings field.
+        keep_original_file : typing.Optional[bool]
+            Indicates if the original file should be stored.
 
-            - keep_fields: typing.Optional[typing.Union[str, typing.Sequence[str]]]. List of names of fields that will be persisted in the Dataset. By default the Dataset will retain only the required fields indicated in the [schema for the corresponding Dataset type](https://docs.cohere.com/docs/datasets#dataset-types). For example, datasets of type `embed-input` will drop all fields other than the required `text` field. If any of the fields in `keep_fields` are missing from the uploaded file, Dataset validation will fail.
+        skip_malformed_input : typing.Optional[bool]
+            Indicates whether rows with malformed input should be dropped (instead of failing the validation check). Dropped rows will be returned in the warnings field.
 
-            - optional_fields: typing.Optional[typing.Union[str, typing.Sequence[str]]]. List of names of fields that will be persisted in the Dataset. By default the Dataset will retain only the required fields indicated in the [schema for the corresponding Dataset type](https://docs.cohere.com/docs/datasets#dataset-types). For example, Datasets of type `embed-input` will drop all fields other than the required `text` field. If any of the fields in `optional_fields` are missing from the uploaded file, Dataset validation will pass.
+        keep_fields : typing.Optional[typing.Union[str, typing.Sequence[str]]]
+            List of names of fields that will be persisted in the Dataset. By default the Dataset will retain only the required fields indicated in the [schema for the corresponding Dataset type](https://docs.cohere.com/docs/datasets#dataset-types). For example, datasets of type `embed-input` will drop all fields other than the required `text` field. If any of the fields in `keep_fields` are missing from the uploaded file, Dataset validation will fail.
 
-            - text_separator: typing.Optional[str]. Raw .txt uploads will be split into entries using the text_separator value.
+        optional_fields : typing.Optional[typing.Union[str, typing.Sequence[str]]]
+            List of names of fields that will be persisted in the Dataset. By default the Dataset will retain only the required fields indicated in the [schema for the corresponding Dataset type](https://docs.cohere.com/docs/datasets#dataset-types). For example, Datasets of type `embed-input` will drop all fields other than the required `text` field. If any of the fields in `optional_fields` are missing from the uploaded file, Dataset validation will pass.
 
-            - csv_delimiter: typing.Optional[str]. The delimiter used for .csv uploads.
+        text_separator : typing.Optional[str]
+            Raw .txt uploads will be split into entries using the text_separator value.
 
-            - dry_run: typing.Optional[bool]. flag to enable dry_run mode
+        csv_delimiter : typing.Optional[str]
+            The delimiter used for .csv uploads.
 
-            - data: core.File. See core.File for more documentation
+        dry_run : typing.Optional[bool]
+            flag to enable dry_run mode
 
-            - eval_data: typing.Optional[core.File]. See core.File for more documentation
+        eval_data : typing.Optional[core.File]
+            See core.File for more documentation
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DatasetsCreateResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -168,54 +235,69 @@ class DatasetsClient:
         )
         """
         _response = self._client_wrapper.httpx_client.request(
-            "POST",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "datasets"),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "name": name,
-                        "type": type,
-                        "keep_original_file": keep_original_file,
-                        "skip_malformed_input": skip_malformed_input,
-                        "keep_fields": keep_fields,
-                        "optional_fields": optional_fields,
-                        "text_separator": text_separator,
-                        "csv_delimiter": csv_delimiter,
-                        "dry_run": dry_run,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            data=jsonable_encoder(remove_none_from_dict({}))
-            if request_options is None or request_options.get("additional_body_parameters") is None
-            else {
-                **jsonable_encoder(remove_none_from_dict({})),
-                **(jsonable_encoder(remove_none_from_dict(request_options.get("additional_body_parameters", {})))),
+            "datasets",
+            method="POST",
+            params={
+                "name": name,
+                "type": type,
+                "keep_original_file": keep_original_file,
+                "skip_malformed_input": skip_malformed_input,
+                "keep_fields": keep_fields,
+                "optional_fields": optional_fields,
+                "text_separator": text_separator,
+                "csv_delimiter": csv_delimiter,
+                "dry_run": dry_run,
             },
-            files=core.convert_file_dict_to_httpx_tuples(remove_none_from_dict({"data": data, "eval_data": eval_data})),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            data={},
+            files={"data": data, "eval_data": eval_data},
+            request_options=request_options,
+            omit=OMIT,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DatasetsCreateResponse, construct_type(type_=DatasetsCreateResponse, object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -227,9 +309,18 @@ class DatasetsClient:
         """
         View the dataset storage usage for your Organization. Each Organization can have up to 10GB of storage across all their users.
 
-        Parameters:
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        Parameters
+        ----------
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DatasetsGetUsageResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -239,30 +330,53 @@ class DatasetsClient:
         client.datasets.get_usage()
         """
         _response = self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "datasets/usage"),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            "datasets/usage", method="GET", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DatasetsGetUsageResponse, construct_type(type_=DatasetsGetUsageResponse, object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -274,11 +388,20 @@ class DatasetsClient:
         """
         Retrieve a dataset by ID. See ['Datasets'](https://docs.cohere.com/docs/datasets) for more information.
 
-        Parameters:
-            - id: str.
+        Parameters
+        ----------
+        id : str
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DatasetsGetResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -290,30 +413,53 @@ class DatasetsClient:
         )
         """
         _response = self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", f"datasets/{jsonable_encoder(id)}"),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"datasets/{jsonable_encoder(id)}", method="GET", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DatasetsGetResponse, construct_type(type_=DatasetsGetResponse, object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -327,11 +473,20 @@ class DatasetsClient:
         """
         Delete a dataset by ID. Datasets are automatically deleted after 30 days, but they can also be deleted manually.
 
-        Parameters:
-            - id: str.
+        Parameters
+        ----------
+        id : str
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        typing.Dict[str, typing.Any]
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import Client
 
         client = Client(
@@ -343,30 +498,53 @@ class DatasetsClient:
         )
         """
         _response = self._client_wrapper.httpx_client.request(
-            "DELETE",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", f"datasets/{jsonable_encoder(id)}"),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"datasets/{jsonable_encoder(id)}", method="DELETE", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(typing.Dict[str, typing.Any], construct_type(type_=typing.Dict[str, typing.Any], object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -393,21 +571,36 @@ class AsyncDatasetsClient:
         """
         List datasets that have been created.
 
-        Parameters:
-            - dataset_type: typing.Optional[str]. optional filter by dataset type
+        Parameters
+        ----------
+        dataset_type : typing.Optional[str]
+            optional filter by dataset type
 
-            - before: typing.Optional[dt.datetime]. optional filter before a date
+        before : typing.Optional[dt.datetime]
+            optional filter before a date
 
-            - after: typing.Optional[dt.datetime]. optional filter after a date
+        after : typing.Optional[dt.datetime]
+            optional filter after a date
 
-            - limit: typing.Optional[float]. optional limit to number of results
+        limit : typing.Optional[float]
+            optional limit to number of results
 
-            - offset: typing.Optional[float]. optional offset to start of results
+        offset : typing.Optional[float]
+            optional offset to start of results
 
-            - validation_status: typing.Optional[DatasetValidationStatus]. optional filter by validation status
+        validation_status : typing.Optional[DatasetValidationStatus]
+            optional filter by validation status
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DatasetsListResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -417,44 +610,63 @@ class AsyncDatasetsClient:
         await client.datasets.list()
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "datasets"),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "datasetType": dataset_type,
-                        "before": serialize_datetime(before) if before is not None else None,
-                        "after": serialize_datetime(after) if after is not None else None,
-                        "limit": limit,
-                        "offset": offset,
-                        "validationStatus": validation_status,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            "datasets",
+            method="GET",
+            params={
+                "datasetType": dataset_type,
+                "before": serialize_datetime(before) if before is not None else None,
+                "after": serialize_datetime(after) if after is not None else None,
+                "limit": limit,
+                "offset": offset,
+                "validationStatus": validation_status,
+            },
+            request_options=request_options,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DatasetsListResponse, construct_type(type_=DatasetsListResponse, object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -467,6 +679,7 @@ class AsyncDatasetsClient:
         *,
         name: str,
         type: DatasetType,
+        data: core.File,
         keep_original_file: typing.Optional[bool] = None,
         skip_malformed_input: typing.Optional[bool] = None,
         keep_fields: typing.Optional[typing.Union[str, typing.Sequence[str]]] = None,
@@ -474,38 +687,57 @@ class AsyncDatasetsClient:
         text_separator: typing.Optional[str] = None,
         csv_delimiter: typing.Optional[str] = None,
         dry_run: typing.Optional[bool] = None,
-        data: core.File,
         eval_data: typing.Optional[core.File] = None,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> DatasetsCreateResponse:
         """
         Create a dataset by uploading a file. See ['Dataset Creation'](https://docs.cohere.com/docs/datasets#dataset-creation) for more information.
 
-        Parameters:
-            - name: str. The name of the uploaded dataset.
+        Parameters
+        ----------
+        name : str
+            The name of the uploaded dataset.
 
-            - type: DatasetType. The dataset type, which is used to validate the data. Valid types are `embed-input`, `reranker-finetune-input`, `prompt-completion-finetune-input`, `single-label-classification-finetune-input`, `chat-finetune-input`, and `multi-label-classification-finetune-input`.
+        type : DatasetType
+            The dataset type, which is used to validate the data. Valid types are `embed-input`, `reranker-finetune-input`, `single-label-classification-finetune-input`, `chat-finetune-input`, and `multi-label-classification-finetune-input`.
 
-            - keep_original_file: typing.Optional[bool]. Indicates if the original file should be stored.
+        data : core.File
+            See core.File for more documentation
 
-            - skip_malformed_input: typing.Optional[bool]. Indicates whether rows with malformed input should be dropped (instead of failing the validation check). Dropped rows will be returned in the warnings field.
+        keep_original_file : typing.Optional[bool]
+            Indicates if the original file should be stored.
 
-            - keep_fields: typing.Optional[typing.Union[str, typing.Sequence[str]]]. List of names of fields that will be persisted in the Dataset. By default the Dataset will retain only the required fields indicated in the [schema for the corresponding Dataset type](https://docs.cohere.com/docs/datasets#dataset-types). For example, datasets of type `embed-input` will drop all fields other than the required `text` field. If any of the fields in `keep_fields` are missing from the uploaded file, Dataset validation will fail.
+        skip_malformed_input : typing.Optional[bool]
+            Indicates whether rows with malformed input should be dropped (instead of failing the validation check). Dropped rows will be returned in the warnings field.
 
-            - optional_fields: typing.Optional[typing.Union[str, typing.Sequence[str]]]. List of names of fields that will be persisted in the Dataset. By default the Dataset will retain only the required fields indicated in the [schema for the corresponding Dataset type](https://docs.cohere.com/docs/datasets#dataset-types). For example, Datasets of type `embed-input` will drop all fields other than the required `text` field. If any of the fields in `optional_fields` are missing from the uploaded file, Dataset validation will pass.
+        keep_fields : typing.Optional[typing.Union[str, typing.Sequence[str]]]
+            List of names of fields that will be persisted in the Dataset. By default the Dataset will retain only the required fields indicated in the [schema for the corresponding Dataset type](https://docs.cohere.com/docs/datasets#dataset-types). For example, datasets of type `embed-input` will drop all fields other than the required `text` field. If any of the fields in `keep_fields` are missing from the uploaded file, Dataset validation will fail.
 
-            - text_separator: typing.Optional[str]. Raw .txt uploads will be split into entries using the text_separator value.
+        optional_fields : typing.Optional[typing.Union[str, typing.Sequence[str]]]
+            List of names of fields that will be persisted in the Dataset. By default the Dataset will retain only the required fields indicated in the [schema for the corresponding Dataset type](https://docs.cohere.com/docs/datasets#dataset-types). For example, Datasets of type `embed-input` will drop all fields other than the required `text` field. If any of the fields in `optional_fields` are missing from the uploaded file, Dataset validation will pass.
 
-            - csv_delimiter: typing.Optional[str]. The delimiter used for .csv uploads.
+        text_separator : typing.Optional[str]
+            Raw .txt uploads will be split into entries using the text_separator value.
 
-            - dry_run: typing.Optional[bool]. flag to enable dry_run mode
+        csv_delimiter : typing.Optional[str]
+            The delimiter used for .csv uploads.
 
-            - data: core.File. See core.File for more documentation
+        dry_run : typing.Optional[bool]
+            flag to enable dry_run mode
 
-            - eval_data: typing.Optional[core.File]. See core.File for more documentation
+        eval_data : typing.Optional[core.File]
+            See core.File for more documentation
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DatasetsCreateResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -518,54 +750,69 @@ class AsyncDatasetsClient:
         )
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "POST",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "datasets"),
-            params=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        "name": name,
-                        "type": type,
-                        "keep_original_file": keep_original_file,
-                        "skip_malformed_input": skip_malformed_input,
-                        "keep_fields": keep_fields,
-                        "optional_fields": optional_fields,
-                        "text_separator": text_separator,
-                        "csv_delimiter": csv_delimiter,
-                        "dry_run": dry_run,
-                        **(
-                            request_options.get("additional_query_parameters", {})
-                            if request_options is not None
-                            else {}
-                        ),
-                    }
-                )
-            ),
-            data=jsonable_encoder(remove_none_from_dict({}))
-            if request_options is None or request_options.get("additional_body_parameters") is None
-            else {
-                **jsonable_encoder(remove_none_from_dict({})),
-                **(jsonable_encoder(remove_none_from_dict(request_options.get("additional_body_parameters", {})))),
+            "datasets",
+            method="POST",
+            params={
+                "name": name,
+                "type": type,
+                "keep_original_file": keep_original_file,
+                "skip_malformed_input": skip_malformed_input,
+                "keep_fields": keep_fields,
+                "optional_fields": optional_fields,
+                "text_separator": text_separator,
+                "csv_delimiter": csv_delimiter,
+                "dry_run": dry_run,
             },
-            files=core.convert_file_dict_to_httpx_tuples(remove_none_from_dict({"data": data, "eval_data": eval_data})),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            data={},
+            files={"data": data, "eval_data": eval_data},
+            request_options=request_options,
+            omit=OMIT,
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DatasetsCreateResponse, construct_type(type_=DatasetsCreateResponse, object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -577,9 +824,18 @@ class AsyncDatasetsClient:
         """
         View the dataset storage usage for your Organization. Each Organization can have up to 10GB of storage across all their users.
 
-        Parameters:
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        Parameters
+        ----------
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DatasetsGetUsageResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -589,30 +845,53 @@ class AsyncDatasetsClient:
         await client.datasets.get_usage()
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", "datasets/usage"),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            "datasets/usage", method="GET", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DatasetsGetUsageResponse, construct_type(type_=DatasetsGetUsageResponse, object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -624,11 +903,20 @@ class AsyncDatasetsClient:
         """
         Retrieve a dataset by ID. See ['Datasets'](https://docs.cohere.com/docs/datasets) for more information.
 
-        Parameters:
-            - id: str.
+        Parameters
+        ----------
+        id : str
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        DatasetsGetResponse
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -640,30 +928,53 @@ class AsyncDatasetsClient:
         )
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "GET",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", f"datasets/{jsonable_encoder(id)}"),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"datasets/{jsonable_encoder(id)}", method="GET", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(DatasetsGetResponse, construct_type(type_=DatasetsGetResponse, object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
@@ -677,11 +988,20 @@ class AsyncDatasetsClient:
         """
         Delete a dataset by ID. Datasets are automatically deleted after 30 days, but they can also be deleted manually.
 
-        Parameters:
-            - id: str.
+        Parameters
+        ----------
+        id : str
 
-            - request_options: typing.Optional[RequestOptions]. Request-specific configuration.
-        ---
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        typing.Dict[str, typing.Any]
+            A successful response.
+
+        Examples
+        --------
         from cohere.client import AsyncClient
 
         client = AsyncClient(
@@ -693,30 +1013,53 @@ class AsyncDatasetsClient:
         )
         """
         _response = await self._client_wrapper.httpx_client.request(
-            "DELETE",
-            urllib.parse.urljoin(f"{self._client_wrapper.get_base_url()}/", f"datasets/{jsonable_encoder(id)}"),
-            params=jsonable_encoder(
-                request_options.get("additional_query_parameters") if request_options is not None else None
-            ),
-            headers=jsonable_encoder(
-                remove_none_from_dict(
-                    {
-                        **self._client_wrapper.get_headers(),
-                        **(request_options.get("additional_headers", {}) if request_options is not None else {}),
-                    }
-                )
-            ),
-            timeout=request_options.get("timeout_in_seconds")
-            if request_options is not None and request_options.get("timeout_in_seconds") is not None
-            else self._client_wrapper.get_timeout(),
-            retries=0,
-            max_retries=request_options.get("max_retries") if request_options is not None else 0,  # type: ignore
+            f"datasets/{jsonable_encoder(id)}", method="DELETE", request_options=request_options
         )
         if 200 <= _response.status_code < 300:
             return typing.cast(typing.Dict[str, typing.Any], construct_type(type_=typing.Dict[str, typing.Any], object_=_response.json()))  # type: ignore
+        if _response.status_code == 400:
+            raise BadRequestError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 401:
+            raise UnauthorizedError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 403:
+            raise ForbiddenError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 404:
+            raise NotFoundError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 422:
+            raise UnprocessableEntityError(
+                typing.cast(UnprocessableEntityErrorBody, construct_type(type_=UnprocessableEntityErrorBody, object_=_response.json()))  # type: ignore
+            )
         if _response.status_code == 429:
             raise TooManyRequestsError(
+                typing.cast(TooManyRequestsErrorBody, construct_type(type_=TooManyRequestsErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 499:
+            raise ClientClosedRequestError(
+                typing.cast(ClientClosedRequestErrorBody, construct_type(type_=ClientClosedRequestErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 500:
+            raise InternalServerError(
                 typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 501:
+            raise NotImplementedError(
+                typing.cast(NotImplementedErrorBody, construct_type(type_=NotImplementedErrorBody, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 503:
+            raise ServiceUnavailableError(
+                typing.cast(typing.Any, construct_type(type_=typing.Any, object_=_response.json()))  # type: ignore
+            )
+        if _response.status_code == 504:
+            raise GatewayTimeoutError(
+                typing.cast(GatewayTimeoutErrorBody, construct_type(type_=GatewayTimeoutErrorBody, object_=_response.json()))  # type: ignore
             )
         try:
             _response_json = _response.json()
